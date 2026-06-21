@@ -5325,9 +5325,9 @@ function buildWordSession(){
   const q=[]; const sh=shuffle(due.slice()); let fi=0,di=0;
   while(fi<fresh.length||di<sh.length){
     if(di<sh.length) q.push({k:sh[di++],isNew:false});
-    if(fi<fresh.length && (di%2===0)) q.push({k:fresh[fi++],isNew:true});
+    // push a new word every other review, AND always once reviews are exhausted (prevents an infinite loop when due count is odd)
+    if(fi<fresh.length && (di%2===0 || di>=sh.length)) q.push({k:fresh[fi++],isNew:true});
   }
-  while(fi<fresh.length) q.push({k:fresh[fi++],isNew:true});
   return q;
 }
 /* SM-2 grade for a word — same math as gradeCard, on the word deck (shares streak/history) */
