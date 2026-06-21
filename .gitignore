@@ -1,0 +1,4 @@
+# Deploy repo = just the app. Everything else stays local.
+*
+!index.html
+!.gitignore
