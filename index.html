@@ -390,6 +390,26 @@ h1,h2,h3,.sora{font-family:'Sora',sans-serif}
 .pf-stat{display:flex;flex-direction:column;gap:6px}
 .pf-stat b{font-family:'Sora';font-size:24px;font-weight:800;line-height:1;letter-spacing:-.02em}
 .pf-stat span{font-size:11px;color:var(--ink-faint);font-weight:600}
+.pf-stat.clk{cursor:pointer;border-radius:12px;padding:8px;margin:-8px;transition:background .15s}
+.pf-stat.clk:hover{background:var(--surface-2)}
+.pf-stat.clk span::after{content:' ›';color:var(--ink-faint);font-weight:700}
+/* stat-detail full page */
+.sp-title{font-family:'Sora';font-size:32px;font-weight:800;letter-spacing:-.02em;margin:2px 0 0}
+.sp-log{margin-top:6px;max-width:940px}
+.sp-colh{display:grid;grid-template-columns:170px 1fr 200px 130px;gap:18px;padding:0 4px 9px;font-family:'DM Mono';font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-faint)}
+.sp-colh.day{grid-template-columns:1fr 140px}
+.sp-colh .h{text-align:right}
+.sp-row{display:grid;grid-template-columns:170px 1fr 200px 130px;gap:18px;padding:13px 4px;border-bottom:1px solid var(--line);align-items:baseline}
+.sp-row.sp-dayrow{grid-template-columns:1fr 140px}
+.sp-w{display:flex;align-items:baseline;gap:10px}
+.sp-row .jp{font-size:20px;color:var(--ink)}
+.sp-rom{font-family:'DM Mono';font-size:12px;color:var(--ink-faint)}
+.sp-mean{font-size:14px;color:var(--ink-soft)}
+.sp-src{font-size:13px;color:var(--green-f)}
+.sp-when{font-family:'DM Mono';font-size:12px;color:var(--ink-faint);text-align:right}
+.sp-cnt{font-family:'DM Mono';font-size:13px;color:var(--ink-soft);text-align:right}
+.sp-empty{padding:44px 4px;color:var(--ink-faint);font-size:15px}
+@media(max-width:720px){.sp-colh,.sp-row{grid-template-columns:1fr 1fr;gap:8px}.sp-src,.sp-colh span:nth-child(3){display:none}}
 /* activity panel sits in the top row now */
 #activityChart2{width:100%;height:150px;display:block;margin-top:12px;overflow:visible}
 #activityChart2 .gl{stroke:var(--line);stroke-width:1}
@@ -1094,10 +1114,10 @@ h1,h2,h3,.sora{font-family:'Sora',sans-serif}
           <div class="panel pf-statpanel anim">
             <div class="sec-head"><div><h3>Progress</h3><div class="sub">Your kana &amp; reading stats.</div></div></div>
             <div class="pf-stats">
-              <div class="pf-stat"><b id="pfMastered">0</b><span>kana mastered</span></div>
-              <div class="pf-stat"><b id="pfWords">0</b><span>words learned</span></div>
-              <div class="pf-stat"><b id="pfReviews">0</b><span>cards reviewed</span></div>
-              <div class="pf-stat"><b id="pfDays">0</b><span>days studied</span></div>
+              <div class="pf-stat clk" onclick="openStatPage('mastered')"><b id="pfMastered">0</b><span>kana mastered</span></div>
+              <div class="pf-stat clk" onclick="openStatPage('words')"><b id="pfWords">0</b><span>words learned</span></div>
+              <div class="pf-stat clk" onclick="openStatPage('reviews')"><b id="pfReviews">0</b><span>cards reviewed</span></div>
+              <div class="pf-stat clk" onclick="openStatPage('days')"><b id="pfDays">0</b><span>days studied</span></div>
             </div>
           </div>
           <div class="panel activity anim">
@@ -1144,6 +1164,21 @@ h1,h2,h3,.sora{font-family:'Sora',sans-serif}
           </div>
         </div>
         <div class="lp-grid" id="lpGrid"></div>
+      </div>
+    </section>
+
+    <section class="view" id="view-stat" data-view="stat">
+      <div class="view-inner">
+        <button class="lp-back" onclick="backFromList()">← Back to profile</button>
+        <div class="lp-head">
+          <div class="lp-headmain">
+            <div class="lp-eyebrow">Progress</div>
+            <h1 class="sp-title" id="statTitle">—</h1>
+            <div class="lp-meta" id="statMeta"></div>
+          </div>
+        </div>
+        <div id="statColH"></div>
+        <div class="sp-log" id="statBody"></div>
       </div>
     </section>
   </main>
@@ -1339,7 +1374,7 @@ function shuffle(a){ for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.rando
 function gradeCard(k,isNew,q){
   const t=todayStamp();
   let s=S.srs[k];
-  if(!s){ s={ef:2.5,interval:0,reps:0,due:t,seen:0,correct:0,lapses:0}; S.srs[k]=s; S.introducedOrder.push(k); if(isNew){S.newToday++;} }
+  if(!s){ s={ef:2.5,interval:0,reps:0,due:t,seen:0,correct:0,lapses:0,day0:t}; S.srs[k]=s; S.introducedOrder.push(k); if(isNew){S.newToday++;} }
   s.seen++; S.seenTotal++;
   const correct=q>=2; if(correct){s.correct++;S.correctTotal++;}
   const qual=[2,3,4,5][q];
@@ -5286,7 +5321,7 @@ function buildWordSession(){
 /* SM-2 grade for a word — same math as gradeCard, on the word deck (shares streak/history) */
 function gradeWord(k,isNew,q){
   const t=todayStamp(); let s=S.wordSrs[k];
-  if(!s){ s={ef:2.5,interval:0,reps:0,due:t,seen:0,correct:0,lapses:0}; S.wordSrs[k]=s; S.wordIntroduced.push(k); if(isNew){S.wNewToday++;} }
+  if(!s){ s={ef:2.5,interval:0,reps:0,due:t,seen:0,correct:0,lapses:0,day0:t,src:S.wordDeck}; S.wordSrs[k]=s; S.wordIntroduced.push(k); if(isNew){S.wNewToday++;} }
   s.seen++; S.seenTotal++;
   const correct=q>=2; if(correct){s.correct++;S.correctTotal++;}
   const qual=[2,3,4,5][q];
@@ -5939,6 +5974,43 @@ function openListPage(lid,focusName){
   if(focusName) setTimeout(()=>{ const n=$('#lpName'); if(n){ n.focus(); n.select(); } },50);
 }
 function backFromList(){ switchView('profile'); renderProfile(); }
+
+// ---- Progress stat detail pages (click a stat in Profile -> full-page log) ----
+function dayToDate(d){ return d? new Date(d*DAY) : null; }
+function fmtDay(d){ const dt=dayToDate(d); return dt? dt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—'; }
+function deckNameById(id){ const d=READING_DECKS.find(x=>x.id===id); return d? d.name : (id||'—'); }
+function openStatPage(key){
+  const titleEl=$('#statTitle'), metaEl=$('#statMeta'), bodyEl=$('#statBody'), colhEl=$('#statColH');
+  let title='', meta='', colh='', html='';
+  if(key==='words'){
+    title='Words learned';
+    const items=S.wordIntroduced.map(k=>({k,s:S.wordSrs[k]})).filter(x=>x.s).sort((a,b)=>(b.s.day0||0)-(a.s.day0||0));
+    meta=`${items.length} word${items.length===1?'':'s'}`;
+    colh=`<div class="sp-colh"><span>Word</span><span>Meaning</span><span>Learned from</span><span class="h">When</span></div>`;
+    html=items.map(x=>{ const wm=WMEAN[x.k]||[]; const rom=wm[0]||kanaRomaji(x.k);
+      return `<div class="sp-row"><div class="sp-w"><span class="jp">${x.k}</span><span class="sp-rom">${rom}</span></div><div class="sp-mean">${esc(wm[1]||'')}</div><div class="sp-src">${x.s.src?esc(deckNameById(x.s.src)):'—'}</div><div class="sp-when">${fmtDay(x.s.day0)}</div></div>`;
+    }).join('') || '<div class="sp-empty">No words learned yet — open a title and study to begin.</div>';
+  } else if(key==='mastered'){
+    title='Kana mastered';
+    const ks=S.introducedOrder.filter(k=>masteryLevel(k)===3);
+    meta=`${ks.length} kana`;
+    colh=`<div class="sp-colh"><span>Kana</span><span>Reading</span><span>Status</span><span class="h">Learned</span></div>`;
+    html=ks.map(k=>{ const c=KANA[IDX[k]], s=S.srs[k];
+      return `<div class="sp-row"><div class="sp-w"><span class="jp">${k}</span></div><div class="sp-mean">${c?c.r:''}</div><div class="sp-src">mastered</div><div class="sp-when">${fmtDay(s&&s.day0)}</div></div>`;
+    }).join('') || '<div class="sp-empty">No kana mastered yet.</div>';
+  } else {
+    const isRev=key==='reviews';
+    title=isRev?'Cards reviewed':'Days studied';
+    const days=Object.keys(S.history||{}).map(Number).sort((a,b)=>b-a);
+    const total=Object.values(S.history||{}).reduce((a,b)=>a+b,0);
+    meta=isRev?`${total.toLocaleString()} cards over ${days.length} day${days.length===1?'':'s'}`:`${days.length} day${days.length===1?'':'s'} studied`;
+    colh=`<div class="sp-colh day"><span>Date</span><span class="h">Cards</span></div>`;
+    html=days.map(d=>`<div class="sp-row sp-dayrow"><div class="sp-mean">${fmtDay(d)}</div><div class="sp-cnt">${S.history[d]} cards</div></div>`).join('')
+      || '<div class="sp-empty">No study days yet.</div>';
+  }
+  titleEl.textContent=title; metaEl.textContent=meta; colhEl.innerHTML=colh; bodyEl.innerHTML=html;
+  switchView('stat');
+}
 function renameCurList(v){ const l=getList(curListId); if(!l) return; l.name=v.slice(0,40); save(); }
 function deleteCurList(){
   const l=getList(curListId); if(!l) return;
