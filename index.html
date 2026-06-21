@@ -325,6 +325,10 @@ h1,h2,h3,.sora{font-family:'Sora',sans-serif}
 .slog-row .sm{font-size:14px;color:var(--ink-soft)}
 .slog-row.learned .jp{color:var(--green-f)}
 .slog-row.learned{opacity:.6}
+.slog-more{padding:16px 2px 4px;font-family:'DM Mono';font-size:12px;color:var(--ink-faint);text-align:center}
+.study-loading{display:grid;place-items:center;gap:16px;height:62vh;color:var(--ink-soft);font-family:'DM Mono';font-size:15px}
+.sl-spin{width:34px;height:34px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--green-f);animation:slspin .8s linear infinite}
+@keyframes slspin{to{transform:rotate(360deg)}}
 .sprog{flex:1;height:9px;border-radius:6px;background:var(--surface-2);overflow:hidden;border:1px solid var(--line)}
 .sprog i{display:block;height:100%;background:var(--grad);border-radius:6px;box-shadow:0 0 12px var(--glow);transition:width .45s cubic-bezier(.16,.84,.28,1)}
 .scount{font-family:'DM Mono';font-size:13px;font-weight:500;color:var(--ink-soft);min-width:54px;text-align:right}
@@ -5204,17 +5208,21 @@ const SUPA_KEY="sb_publishable_dRR4hzItYfhhn3GUVg-sHw_EpGT0mrK";
 // PRIMARY source: full vocab straight from your Supabase DB. Works from ANY origin
 // (file://, localhost, Vercel) because Supabase sends CORS headers — jiten does not.
 async function fetchFromSupabase(d,onProg){
-  const out=[]; let off=0; const page=1000;
-  while(true){
-    const r=await fetch(`${SUPA_URL}/rest/v1/title_words?title_id=eq.${encodeURIComponent(d.id)}&select=rank_in_title,words(reading,romaji,meaning,freq_rank)&order=rank_in_title.asc&limit=${page}&offset=${off}`,
-      {headers:{apikey:SUPA_KEY,Authorization:'Bearer '+SUPA_KEY}});
-    if(!r.ok) throw new Error('Supabase '+r.status);
-    const rows=await r.json();
-    for(const row of rows){ const w=row.words; if(w&&w.reading) out.push([w.reading,w.romaji,w.meaning,w.freq_rank||0]); }
-    if(onProg) onProg(out.length);
-    if(rows.length<page) break;
-    off+=page;
+  const page=1000, hdr={apikey:SUPA_KEY,Authorization:'Bearer '+SUPA_KEY};
+  const base=`${SUPA_URL}/rest/v1/title_words?title_id=eq.${encodeURIComponent(d.id)}&select=rank_in_title,words(reading,romaji,meaning,freq_rank)&order=rank_in_title.asc`;
+  const grab=async off=>{ const r=await fetch(`${base}&limit=${page}&offset=${off}`,{headers:hdr}); if(!r.ok) throw new Error('Supabase '+r.status); return r.json(); };
+  const collect=(arr,rows)=>{ for(const row of rows){ const w=row.words; if(w&&w.reading) arr.push([w.reading,w.romaji,w.meaning,w.freq_rank||0]); } };
+  const total=WCOUNT[d.id]||0;
+  if(!total){ // unknown count -> sequential fallback
+    const out=[]; let off=0;
+    while(true){ const rows=await grab(off); collect(out,rows); if(onProg)onProg(out.length); if(rows.length<page)break; off+=page; }
+    return out;
   }
+  // known count -> fetch all pages in parallel (concurrency-limited), preserve order
+  const pages=Math.ceil(total/page); const results=new Array(pages); let i=0,done=0;
+  const worker=async()=>{ while(i<pages){ const p=i++; results[p]=await grab(p*page); done++; if(onProg)onProg(done*page); } };
+  await Promise.all(Array.from({length:Math.min(14,pages)},worker));
+  const out=[]; for(const rows of results){ if(rows) collect(out,rows); }
   return out;
 }
 
@@ -5678,10 +5686,11 @@ function toggleStudyLog(){
   const log=$('#studyLog'), btn=$('#studyLogBtn');
   if(!log||!btn) return;
   if(log.classList.contains('open')){ log.classList.remove('open'); btn.classList.remove('on'); return; }
-  const d=activeDeck();
-  const rows=d.words.map(w=>{ const s=S.wordSrs[w[0]]; const learned=s&&s.reps>0;
+  const d=activeDeck(); const CAP=2000; const shown=d.words.slice(0,CAP);
+  const rows=shown.map(w=>{ const s=S.wordSrs[w[0]]; const learned=s&&s.reps>0;
     return `<div class="slog-row${learned?' learned':''}"><span class="jp">${w[0]}</span><span class="sr">${w[1]||''}</span><span class="sm">${esc(w[2]||'')}</span></div>`; }).join('');
-  log.innerHTML=`<div class="slog-inner"><div class="slog-h"><span>${esc(d.name||'Words')} · ${d.words.length.toLocaleString()} words</span><span>${deckLearned(d)} learned</span></div>${rows}</div>`;
+  const more=d.words.length>CAP?`<div class="slog-more">Showing first ${CAP.toLocaleString()} of ${d.words.length.toLocaleString()} (ordered by frequency)</div>`:'';
+  log.innerHTML=`<div class="slog-inner"><div class="slog-h"><span>${esc(d.name||'Words')} · ${d.words.length.toLocaleString()} words</span><span>${deckLearned(d)} learned</span></div>${rows}${more}</div>`;
   log.classList.add('open'); btn.classList.add('on');
 }
 
@@ -5786,7 +5795,15 @@ function wSetDiff(d){ wDiff=d; wRenderList(); }
 function wNorm(s){ return (s||'').toLowerCase().replace(/[^a-z0-9ぁ-ゟァ-ヿ一-鿿]/g,''); }
 function wSetSearch(v){ const val=wNorm(v); clearTimeout(wSearchT); wSearchT=setTimeout(()=>{ wSearch=val; wRenderList(); }, 170); }
 function selectWordDeck(id){ if(READING_DECKS.some(d=>d.id===id)){ S.wordDeck=id; save(); } }
-async function studyDeck(id){ const d=READING_DECKS.find(x=>x.id===id); selectWordDeck(id); await ensureVocab(d); startReading(); }
+async function studyDeck(id){
+  const d=READING_DECKS.find(x=>x.id===id); selectWordDeck(id);
+  if(d && isJitenDeck(d) && !d._full){
+    $('#studyScreen').classList.add('show');
+    $('#studyBody').innerHTML='<div class="study-loading"><div class="sl-spin"></div><div>Loading words…</div></div>';
+    await ensureVocab(d);
+  }
+  startReading();
+}
 function wRender(){
   const due=wordDue().length, na=Math.min(wordNewAvail(),wordNextNew(99).length), size=due+na;
   const nav=$('#navWordDue'); if(nav){ nav.textContent=size; nav.classList.toggle('zero',size===0); }
