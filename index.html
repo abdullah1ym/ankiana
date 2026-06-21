@@ -403,17 +403,21 @@ h1,h2,h3,.sora{font-family:'Sora',sans-serif}
 .pf-stat.clk span::after{content:' ›';color:var(--ink-faint);font-weight:700}
 /* stat-detail full page */
 .sp-title{font-family:'Sora';font-size:32px;font-weight:800;letter-spacing:-.02em;margin:2px 0 0}
-.sp-log{margin-top:6px;max-width:940px}
-.sp-colh{display:grid;grid-template-columns:170px 1fr 200px 130px;gap:18px;padding:0 4px 9px;max-width:940px;font-family:'DM Mono';font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-faint)}
+.sp-log{margin-top:6px;max-width:960px}
+.sp-colh{display:grid;grid-template-columns:160px 1fr 260px 120px;gap:18px;padding:0 4px 9px;max-width:960px;font-family:'DM Mono';font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-faint)}
 .sp-colh.day{grid-template-columns:1fr 140px}
 .sp-colh .h{text-align:right}
-.sp-row{display:grid;grid-template-columns:170px 1fr 200px 130px;gap:18px;padding:13px 4px;border-bottom:1px solid var(--line);align-items:baseline}
+.sp-row{display:grid;grid-template-columns:160px 1fr 260px 120px;gap:18px;padding:11px 4px;border-bottom:1px solid var(--line);align-items:center}
 .sp-row.sp-dayrow{grid-template-columns:1fr 140px}
 .sp-w{display:flex;align-items:baseline;gap:10px}
 .sp-row .jp{font-size:20px;color:var(--ink)}
 .sp-rom{font-family:'DM Mono';font-size:12px;color:var(--ink-faint)}
 .sp-mean{font-size:14px;color:var(--ink-soft)}
-.sp-src{font-size:13px;color:var(--green-f)}
+.sp-src{display:flex;align-items:center;gap:10px;min-width:0}
+.sp-poster{width:34px;height:46px;border-radius:6px;overflow:hidden;background:var(--surface-2);border:1px solid var(--line);display:grid;place-items:center;flex-shrink:0;font-size:16px}
+.sp-poster img{width:100%;height:100%;object-fit:cover;display:block}
+.sp-srcname{font-size:13px;color:var(--ink-soft);line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.sp-dash{color:var(--ink-faint)}
 .sp-when{font-family:'DM Mono';font-size:12px;color:var(--ink-faint);text-align:right}
 .sp-cnt{font-family:'DM Mono';font-size:13px;color:var(--ink-soft);text-align:right}
 .sp-empty{padding:44px 4px;color:var(--ink-faint);font-size:15px}
@@ -6005,6 +6009,17 @@ function backFromList(){ switchView('profile'); renderProfile(); }
 function dayToDate(d){ return d? new Date(d*DAY) : null; }
 function fmtDay(d){ const dt=dayToDate(d); return dt? dt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—'; }
 function deckNameById(id){ const d=READING_DECKS.find(x=>x.id===id); return d? d.name : (id||'—'); }
+// "Learned from" cell — poster thumbnail + title of the source deck
+function srcCell(srcId){
+  if(!srcId) return '<span class="sp-dash">—</span>';
+  const d=READING_DECKS.find(z=>z.id===srcId);
+  if(!d) return `<span class="sp-srcname">${esc(srcId)}</span>`;
+  const e=d.kind==='game'?'🎮':'🎬';
+  const pic=d.cover
+    ? `<img src="${d.cover}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none';this.parentElement.textContent='${e}'">`
+    : e;
+  return `<span class="sp-poster">${pic}</span><span class="sp-srcname">${esc(d.name)}</span>`;
+}
 function openStatPage(key){
   const titleEl=$('#statTitle'), metaEl=$('#statMeta'), bodyEl=$('#statBody'), colhEl=$('#statColH');
   let title='', meta='', colh='', html='';
@@ -6014,7 +6029,7 @@ function openStatPage(key){
     meta=`${items.length} word${items.length===1?'':'s'}`;
     colh=`<div class="sp-colh"><span>Word</span><span>Meaning</span><span>Learned from</span><span class="h">When</span></div>`;
     html=items.map(x=>{ const wm=WMEAN[x.k]||[]; const rom=wm[0]||kanaRomaji(x.k);
-      return `<div class="sp-row"><div class="sp-w"><span class="jp">${x.k}</span><span class="sp-rom">${rom}</span></div><div class="sp-mean">${esc(wm[1]||'')}</div><div class="sp-src">${x.s.src?esc(deckNameById(x.s.src)):'—'}</div><div class="sp-when">${fmtDay(x.s.day0)}</div></div>`;
+      return `<div class="sp-row"><div class="sp-w"><span class="jp">${x.k}</span><span class="sp-rom">${rom}</span></div><div class="sp-mean">${esc(wm[1]||'')}</div><div class="sp-src">${srcCell(x.s.src)}</div><div class="sp-when">${fmtDay(x.s.day0)}</div></div>`;
     }).join('') || '<div class="sp-empty">No words learned yet — open a title and study to begin.</div>';
   } else if(key==='mastered'){
     title='Kana mastered';
