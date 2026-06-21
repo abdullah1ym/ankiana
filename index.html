@@ -1387,6 +1387,7 @@ function gradeCard(k,isNew,q){
   const t=todayStamp();
   let s=S.srs[k];
   if(!s){ s={ef:2.5,interval:0,reps:0,due:t,seen:0,correct:0,lapses:0,day0:t}; S.srs[k]=s; S.introducedOrder.push(k); if(isNew){S.newToday++;} }
+  else if(!s.day0) s.day0=t;   // backfill date for kana learned before tracking existed
   s.seen++; S.seenTotal++;
   const correct=q>=2; if(correct){s.correct++;S.correctTotal++;}
   const qual=[2,3,4,5][q];
@@ -5338,6 +5339,7 @@ function buildWordSession(){
 function gradeWord(k,isNew,q){
   const t=todayStamp(); let s=S.wordSrs[k];
   if(!s){ s={ef:2.5,interval:0,reps:0,due:t,seen:0,correct:0,lapses:0,day0:t,src:S.wordDeck}; S.wordSrs[k]=s; S.wordIntroduced.push(k); if(isNew){S.wNewToday++;} }
+  else { if(!s.src) s.src=S.wordDeck; if(!s.day0) s.day0=t; }   // backfill source/date for words learned before tracking existed
   s.seen++; S.seenTotal++;
   const correct=q>=2; if(correct){s.correct++;S.correctTotal++;}
   const qual=[2,3,4,5][q];
