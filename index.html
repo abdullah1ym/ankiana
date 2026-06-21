@@ -310,6 +310,21 @@ h1,h2,h3,.sora{font-family:'Sora',sans-serif}
   cursor:pointer;color:var(--ink-soft);transition:.18s}
 .study-top .close:hover{color:var(--ink);border-color:var(--line-2)}
 .study-top .close svg{width:18px;height:18px}
+/* word-log button + drop-down panel inside the study session */
+.slog-btn{width:42px;height:42px;border-radius:12px;background:var(--surface);border:1px solid var(--line);display:grid;place-items:center;cursor:pointer;color:var(--ink-soft);transition:.18s;flex-shrink:0}
+.slog-btn:hover{color:var(--ink);border-color:var(--line-2)}
+.slog-btn.on{color:var(--green-f);border-color:var(--green-f)}
+.slog-btn svg{width:19px;height:19px}
+.study-log{position:absolute;left:0;right:0;top:84px;z-index:6;max-height:0;overflow:hidden;transition:max-height .32s cubic-bezier(.16,.84,.28,1);background:var(--surface);border-bottom:1px solid var(--line-2)}
+.study-log.open{max-height:64vh;overflow-y:auto;box-shadow:0 22px 50px -20px rgba(0,0,0,.55)}
+.slog-inner{padding:16px 34px 26px;max-width:920px;margin:0 auto}
+.slog-h{display:flex;justify-content:space-between;align-items:baseline;font-family:'DM Mono';font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-soft);padding:6px 0 12px;position:sticky;top:0;background:var(--surface)}
+.slog-row{display:grid;grid-template-columns:104px 124px 1fr;gap:16px;padding:8px 2px;border-bottom:1px solid var(--line);align-items:baseline}
+.slog-row .jp{font-size:19px;color:var(--ink)}
+.slog-row .sr{font-size:13px;color:var(--ink-soft);font-family:'DM Mono'}
+.slog-row .sm{font-size:14px;color:var(--ink-soft)}
+.slog-row.learned .jp{color:var(--green-f)}
+.slog-row.learned{opacity:.6}
 .sprog{flex:1;height:9px;border-radius:6px;background:var(--surface-2);overflow:hidden;border:1px solid var(--line)}
 .sprog i{display:block;height:100%;background:var(--grad);border-radius:6px;box-shadow:0 0 12px var(--glow);transition:width .45s cubic-bezier(.16,.84,.28,1)}
 .scount{font-family:'DM Mono';font-size:13px;font-weight:500;color:var(--ink-soft);min-width:54px;text-align:right}
@@ -1140,8 +1155,10 @@ h1,h2,h3,.sora{font-family:'Sora',sans-serif}
     <button class="close" id="studyClose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
     <div class="sprog"><i id="sprogBar" style="width:0%"></i></div>
     <div class="scount" id="sCount">0 / 0</div>
+    <button class="slog-btn" id="studyLogBtn" onclick="toggleStudyLog()" title="Word log — every word in this deck" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h12M8 12h12M8 18h9"/><path d="M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg></button>
   </div>
   <div class="study-body" id="studyBody"><!-- flash or done injected --></div>
+  <div class="study-log" id="studyLog"></div>
 </div>
 
 <!-- ============ COMPARE LAYOUT TOGGLE ============ -->
@@ -5616,9 +5633,22 @@ function beginSession(){
   studyKind='kana';
   sIdx=0; sRevealed=false; sCorrectCount=0; sGradedCount=0; sStartLearned=S.introducedOrder.length; sShowK=null;
   $('#studyScreen').classList.add('show');
+  const lb=$('#studyLogBtn'); if(lb) lb.style.display='none';
+  const lg=$('#studyLog'); if(lg) lg.classList.remove('open');
   showCard();
 }
-function endStudy(){ $('#studyScreen').classList.remove('show'); session=null; wSession=null; render(); }
+function endStudy(){ $('#studyScreen').classList.remove('show'); const lg=$('#studyLog'); if(lg) lg.classList.remove('open'); session=null; wSession=null; render(); }
+// Word log — a drop-down list of every word in the current deck, for reference mid-session
+function toggleStudyLog(){
+  const log=$('#studyLog'), btn=$('#studyLogBtn');
+  if(!log||!btn) return;
+  if(log.classList.contains('open')){ log.classList.remove('open'); btn.classList.remove('on'); return; }
+  const d=activeDeck();
+  const rows=d.words.map(w=>{ const s=S.wordSrs[w[0]]; const learned=s&&s.reps>0;
+    return `<div class="slog-row${learned?' learned':''}"><span class="jp">${w[0]}</span><span class="sr">${w[1]||''}</span><span class="sm">${esc(w[2]||'')}</span></div>`; }).join('');
+  log.innerHTML=`<div class="slog-inner"><div class="slog-h"><span>${esc(d.name||'Words')} · ${d.words.length.toLocaleString()} words</span><span>${deckLearned(d)} learned</span></div>${rows}</div>`;
+  log.classList.add('open'); btn.classList.add('on');
+}
 
 /* ===== Reading word-study flow — reuses the #studyScreen overlay, own session state ===== */
 let wSession=null, wIdx=0, wRevealed=false, wGraded=0;
@@ -5630,6 +5660,8 @@ function startReading(){
   }
   studyKind='word'; wIdx=0; wRevealed=false; wGraded=0;
   $('#studyScreen').classList.add('show');
+  const lb=$('#studyLogBtn'); if(lb){ lb.style.display='grid'; lb.classList.remove('on'); }
+  const lg=$('#studyLog'); if(lg) lg.classList.remove('open');
   wShowCard();
 }
 function wShowCard(){
