@@ -1105,10 +1105,9 @@ h1,h2,h3,.sora{font-family:'Sora',sans-serif}
 
         <!-- study pace -->
         <div class="panel pf-pace anim">
-          <div class="sec-head"><div><h3>Study pace</h3><div class="sub">New cards introduced per day.</div></div></div>
+          <div class="sec-head"><div><h3>Study pace</h3><div class="sub">New kana introduced per day. Words are all available — study at your own pace.</div></div></div>
           <div class="pf-set">
             <label>New kana / day <input type="number" min="1" max="20" id="pfNewKana" onchange="setNewPerDay('kana',this.value)"></label>
-            <label>New words / day <input type="number" min="1" max="20" id="pfNewWords" onchange="setNewPerDay('word',this.value)"></label>
           </div>
         </div>
       </div>
@@ -5258,8 +5257,7 @@ function wordNextNew(limit){ const out=[]; for(const w of activeDeck().words){ i
 function wordNewAvail(){ return Math.max(0, S.wNewPerDay-S.wNewToday); }
 function buildWordSession(){
   const due=wordDue();
-  const newCount=Math.min(wordNewAvail(), wordNextNew(99).length);
-  const fresh=wordNextNew(newCount);
+  const fresh=wordNextNew(1e9);   // ALL unlearned words — no daily cap; reviews still interleaved
   const q=[]; const sh=shuffle(due.slice()); let fi=0,di=0;
   while(fi<fresh.length||di<sh.length){
     if(di<sh.length) q.push({k:sh[di++],isNew:false});
