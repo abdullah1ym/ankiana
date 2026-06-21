@@ -326,9 +326,13 @@ h1,h2,h3,.sora{font-family:'Sora',sans-serif}
 .slog-row.learned .jp{color:var(--green-f)}
 .slog-row.learned{opacity:.6}
 .slog-more{padding:16px 2px 4px;font-family:'DM Mono';font-size:12px;color:var(--ink-faint);text-align:center}
-.study-loading{display:grid;place-items:center;gap:16px;height:62vh;color:var(--ink-soft);font-family:'DM Mono';font-size:15px}
+.study-loading{display:grid;place-items:center;gap:14px;height:62vh;color:var(--ink-soft);font-family:'DM Mono';font-size:15px;text-align:center}
 .sl-spin{width:34px;height:34px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--green-f);animation:slspin .8s linear infinite}
 @keyframes slspin{to{transform:rotate(360deg)}}
+.sl-msg{color:var(--ink);font-size:16px}
+.sl-bar{width:260px;max-width:62vw;height:8px;border-radius:6px;background:var(--surface-2);border:1px solid var(--line);overflow:hidden;margin-top:2px}
+.sl-bar i{display:block;height:100%;width:0;background:var(--green-f);border-radius:6px;transition:width .25s ease}
+.sl-prog{font-size:12px;color:var(--ink-faint)}
 .sprog{flex:1;height:9px;border-radius:6px;background:var(--surface-2);overflow:hidden;border:1px solid var(--line)}
 .sprog i{display:block;height:100%;background:var(--grad);border-radius:6px;box-shadow:0 0 12px var(--glow);transition:width .45s cubic-bezier(.16,.84,.28,1)}
 .scount{font-family:'DM Mono';font-size:13px;font-weight:500;color:var(--ink-soft);min-width:54px;text-align:right}
@@ -5798,9 +5802,14 @@ function selectWordDeck(id){ if(READING_DECKS.some(d=>d.id===id)){ S.wordDeck=id
 async function studyDeck(id){
   const d=READING_DECKS.find(x=>x.id===id); selectWordDeck(id);
   if(d && isJitenDeck(d) && !d._full){
+    const total=WCOUNT[d.id]||0;
     $('#studyScreen').classList.add('show');
-    $('#studyBody').innerHTML='<div class="study-loading"><div class="sl-spin"></div><div>Loading words…</div></div>';
-    await ensureVocab(d);
+    $('#studyBody').innerHTML=`<div class="study-loading"><div class="sl-spin"></div><div class="sl-msg">Loading words…</div>`+
+      (total?`<div class="sl-bar"><i id="slBar"></i></div><div class="sl-prog" id="slProg">0 / ${total.toLocaleString()} words</div>`:'')+
+      `</div>`;
+    const bar=$('#slBar'), prog=$('#slProg');
+    const onp=n=>{ n=Math.min(n,total); if(bar) bar.style.width=(total?Math.round(n/total*100):0)+'%'; if(prog) prog.textContent=`${n.toLocaleString()} / ${total.toLocaleString()} words`; };
+    try{ const w=await fetchFullVocab(d,onp); if(w&&w.length) applyFullVocab(d,w); }catch(e){}
   }
   startReading();
 }
